@@ -59,7 +59,7 @@ LOIO-CV
 | SVR     | 0.8845 ± 0.0338 | 0.7292          | 0.1553       | 0.0564        | 0.0885       |
 | GPR     | 0.8821 ± 0.0248 | 0.7267          | 0.1554       | 0.0573        | 0.0889       |
 
-![Fig3](/Users/lile/Documents/7-28-CES/Fig3.png)
+![Fig3](parity_plot_XGBoost.png)
 
 ## 6、项目结构
 
