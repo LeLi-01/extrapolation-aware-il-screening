@@ -87,15 +87,15 @@ project/
 └── README.md
 ```
 
-然后每个文件一句话：
 
-```markdown
+
+
 - `preprocess.py`:数据清洗、SMILES验证、RDKit描述符计算与特征构建。
 - `evaluate.py`:Random Split与LOIO-CV模型评估。
 - `train.py`:全量数据训练与模型资产持久化。
 - `predict.py`:加载训练资产，执行新IL推理与虚拟筛选。
 - `test_predict.py`:输入验证、特征一致性与模型推理测试。
-```
+
 
 ## 7、环境
 
