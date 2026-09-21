@@ -1,14 +1,14 @@
 # Extrapolation-aware machine-learning screening of ionic liquids 
 
-面向硫醇前置脱除场景，构建基于H<sub>2</sub>S–IL数据的机器学习预测、外推可靠性评估与候选离子液体虚拟筛选流程。
+面向工业场景生物脱硫过程中的硫醇前置脱除需求，本项目构建了一套从数据清洗、分子表征、模型训练到外推性能评估与候选筛选的机器学习流程。基于26种离子液体的1,280条H<sub>2</sub>S溶解度数据，将阴、阳离子RDKit分子描述符与温度、压力相结合，对比XGBoost、Random Forest、SVR和GPR四类模型，并通过留一离子液体交叉验证（LOIO-CV）评估模型对训练集中未见离子液体的泛化能力，缩小候选吸收材料范围，为后续实验与工艺选型提供依据。
 
 ## 1、项目背景
 
-针对能源气体中硫醇对生物脱硫过程造成的硫颗粒表面疏水化、设备堵塞等问题，本项目提出“离子液体前置吸收 + 数据驱动筛选”的技术路线，用于辅助筛选潜在硫醇吸收剂。
+针对能源气体中硫醇对生物脱硫过程造成的设备堵塞等问题，本项目提出离子液体前置吸收，结合数据驱动筛选的技术路线，用于辅助筛选潜在硫醇吸收剂。
 
-已有研究在4种[C4mim]-based离子液体中对CH<sub>3</sub>SH与H<sub>2</sub>S的溶解行为进行了直接实验比较，结果显示CH<sub>3</sub>SH在这些体系中的溶解度均高于H<sub>2</sub>S。基于这些有限但直接的跨溶质证据，并考虑到硫醇–离子液体实验数据仍较为缺乏，本项目采用数据更丰富的H<sub>2</sub>S–IL体系作为初步代理系统，构建机器学习模型并开展候选离子液体筛选。
+由于硫醇–离子液体实验数据较为有限，本项目采用数据更丰富的H<sub>2</sub>S–IL体系作为初步代理建模体系。已有研究对4种以[C<sub>4</sub>mim]<sup>+</sup>为阳离子的离子液体进行了CH<sub>3</sub>SH与H<sub>2</sub>S溶解行为的直接比较，结果显示CH<sub>3</sub>SH在这些体系中的溶解度均高于H<sub>2</sub>S，为代理筛选思路提供了有限但直接的跨溶质证据。该代理关系仅用于候选优先级排序，不能替代针对硫醇体系的实验验证。
 
-项目进一步关注一个核心问题：基于已知离子液体训练得到的模型，能否可靠地泛化到训练集中未出现的新型离子液体体系。因此，在常规随机划分之外，引入LOIO-CV对模型的外推能力和适用边界进行更严格评估。
+本项目重点关注模型在材料筛选场景中的外推能力。常规随机划分可能使同一种离子液体在不同温度、压力下的数据同时进入训练集和测试集，从而高估模型对新材料的预测能力。因此，项目在随机划分之外引入LOIO-CV，以完整离子液体为单位留出测试，进一步评估模型对未见离子液体的性能及适用边界。
 
 ## 2、核心亮点
 
@@ -66,17 +66,30 @@ LOIO-CV
 ```text
 project/
 ├── data/
+│   ├── Hydrogen sulfide solubility in ionic liquids (ILs).xlsx
 │   └── zhao_data.csv
-├── models/
-│   ├── scaler.pkl
-│   ├── final_model.pkl
-│   ├── vs_models.pkl
+├── models/                         # 运行代码后生成
+│   ├── X_raw.npy
+│   ├── y_raw.npy
+│   ├── IL_ID.npy
+│   ├── X_scaled.npy
 │   ├── nan_cols_mask.npy
-│   └── var_mask.npy
+│   ├── var_mask.npy
+│   ├── scaler.pkl
+│   └── vs_models.pkl
 ├── outputs/
+│   ├── random_split_model_comparison.csv
 │   ├── loio_cv_model_comparison.csv
-│   └── loio_cv_XGBoost_per_il.csv
+│   ├── loio_cv_XGBoost_per_il.csv
+│   ├── loio_cv_RF_per_il.csv
+│   ├── loio_cv_SVR_per_il.csv
+│   ├── loio_cv_GPR_per_il.csv
+│   ├── loio_vs_random_comparison.csv
+│   ├── multimetric_comparison.csv
+│   ├── virtual_screening_full_303K.csv
+│   └── virtual_screening_full_313K.csv
 ├── src/
+│   ├── __init__.py
 │   ├── preprocess.py
 │   ├── evaluate.py
 │   ├── train.py
@@ -86,8 +99,6 @@ project/
 ├── requirements.txt
 └── README.md
 ```
-
-
 
 
 - `preprocess.py`:数据清洗、SMILES验证、RDKit描述符计算与特征构建。
