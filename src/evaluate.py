@@ -7,20 +7,11 @@ from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.svm import SVR
 from sklearn.gaussian_process import GaussianProcessRegressor
-# 虽然它们都在 sklearn.gaussian_process 这个“大柜子”里，但 Python 的导入机制不会因为导入了】
-# GaussianProcessRegressor 就自动把所有核函数也带进来。
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel, ConstantKernel
-# 拿 随机划分函数，用来生成训练/测试集，评估模型在随机采样下的表现。
 from sklearn.model_selection import train_test_split
-# from preprocess import cation_smiles, anion_smiles
 
-
-# =========================
-# 0. 项目路径
-# =========================
-# 1. 加载数据（建议从保存的 il_ids.npy 读取，避免顺序风险）
+#项目路径
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-
 DATA_DIR = PROJECT_ROOT / "data"
 MODELS_DIR = PROJECT_ROOT / "models"
 OUTPUTS_DIR = PROJECT_ROOT / "outputs"
@@ -46,16 +37,10 @@ random_models = {
     "GPR": _make_gpr(),
 }
 
-
-
-# ==========================================
-# 随机 80/20 划分内部基线
-# ==========================================
+#随机划分内部基线
 def run_random_split_baseline(model, model_name, X_raw, y, n_repeats=10):
-    """随机 80/20 划分，重复 n_repeats 次"""
     r2_list, rmse_list, mae_list = [], [], []
     for i in range(n_repeats):
-        # 随机划分，标准写法
         X_train, X_test, y_train, y_test = train_test_split(
             X_raw, y, test_size=0.20, random_state=i * 42
         )
@@ -79,12 +64,7 @@ def run_random_split_baseline(model, model_name, X_raw, y, n_repeats=10):
         "MAE_mean": np.mean(mae_list), "MAE_std": np.std(mae_list),
     }
 
-
-
-
-
 def run_loio_cv(model, model_name, unique_ILs, IL_IDs, X_raw, y):
-    """对指定模型执行 LOIO-CV，返回 (全局指标dict, 每折results_df, 全局y_true, 全局y_pred)"""
     global_y_true = []
     global_y_pred = []
     fold_results = []
@@ -92,28 +72,24 @@ def run_loio_cv(model, model_name, unique_ILs, IL_IDs, X_raw, y):
     for test_il in unique_ILs:
         test_idx = (IL_IDs == test_il)
         train_idx = ~test_idx
-
         X_train = X_raw[train_idx]
         X_test = X_raw[test_idx]
         y_train = y[train_idx]
         y_test = y[test_idx]
-
         scaler = StandardScaler()
         X_train_scaled = scaler.fit_transform(X_train)
         X_test_scaled = scaler.transform(X_test)
 
-        # 5月28日：GPR 每折需重新实例化，其余模型 fit() 即可重置
+        #GPR每折需重新实例化，其余模型fit()即可重置
         if model_name == "GPR":
             fold_model = _make_gpr()
         else:
             fold_model = model
-
         fold_model.fit(X_train_scaled, y_train)
         y_pred = fold_model.predict(X_test_scaled)
-
-        global_y_true.extend(y_test)             #列表，才有.extend()
+        
+        global_y_true.extend(y_test)             
         global_y_pred.extend(y_pred)
-
         rmse = np.sqrt(mean_squared_error(y_test, y_pred))
         mae = mean_absolute_error(y_test, y_pred)
         aard = np.mean(np.abs((y_pred - y_test) / y_test)) * 100
@@ -127,10 +103,9 @@ def run_loio_cv(model, model_name, unique_ILs, IL_IDs, X_raw, y):
             "AARD": aard,
             "n_test": len(y_test)
         })
-    # 转换为 NumPy 类型，是为了“运行速度”和“代码健壮性”，而不是为了“满足 r2_score 的门槛”。
+
     global_y_true = np.array(global_y_true)
     global_y_pred = np.array(global_y_pred)
-
     global_metrics = {
         "model": model_name,
         "R2": r2_score(global_y_true, global_y_pred),
@@ -140,17 +115,16 @@ def run_loio_cv(model, model_name, unique_ILs, IL_IDs, X_raw, y):
     }
     return global_metrics, pd.DataFrame(fold_results), global_y_true, global_y_pred
 
-
 loio_models = {
     "XGBoost": xgb.XGBRegressor(n_estimators=100, max_depth=5, learning_rate=0.1, random_state=42, verbosity=0),
     "RF": RandomForestRegressor(n_estimators=100, max_depth=10, random_state=42, n_jobs=-1),
     "SVR": SVR(kernel='rbf', C=1.0, epsilon=0.01),
-    "GPR": _make_gpr(),  # 5月28日：新增GPR
+    "GPR": _make_gpr(), 
 }
 
 def main():
     print("开始评估...")
-    # 创建目录
+    #创建目录
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -160,19 +134,15 @@ def main():
     y = np.load(MODELS_DIR / "y_raw.npy")
     IL_ID = np.load(MODELS_DIR / "IL_ID.npy")
 
-
-    # 验证顺序一致性（可选）
+    #验证顺序一致性
     print(f"X_raw shape: {X_raw.shape}, y shape: {y.shape}, IL_IDs length: {len(IL_ID)}")
-
-    # 2. 处理 NaN / Inf
+    #处理NaN/Inf
     X_raw = np.nan_to_num(X_raw, nan=0.0, posinf=0.0, neginf=0.0)
-
-    # 3. 确定所有 IL 种类
+    #确定所有IL种类
     unique_ILs = np.unique(IL_ID)
     print(f"总样本数: {len(y)}, 原始特征维度: {X_raw.shape[1]}, IL 种类: {len(unique_ILs)}")
-
     print("\n" + "=" * 50)
-    print("=== 随机划分 80/20 多模型对比 ===")
+    print("随机划分 80/20 多模型对比")
     print("=" * 50)
     random_results_list = []
     for name, model in random_models.items():
@@ -184,7 +154,6 @@ def main():
     random_comparison = pd.DataFrame(random_results_list)
     print("\n" + random_comparison.to_string(index=False))
     random_comparison.to_csv(OUTPUTS_DIR / "random_split_model_comparison.csv", index=False)
-    # 这是 Pandas DataFrame 自带的一个方法。它不直接打印，而是把表格里的数据转换成一段非常规整的纯文本字符串。
     print("已保存: random_split_model_comparison.csv")
 
     for name, model in loio_models.items():
@@ -195,11 +164,9 @@ def main():
         loio_global_results.append(global_m)
         loio_fold_results[name] = fold_df
         loio_predictions[name] = (yt, yp)
-        # XGBoost 打印单折（论文表4需要），RF 仅汇总
+        # XGBoost 打印单折，RF 仅汇总
         if name == "XGBoost":
             for _, row in fold_df.iterrows():
-                # _：这是一个约定俗成的变量名，表示“我不关心这个值”。在这里代表行索引（0, 1, 2...），
-                # 因为你不需要它，所以用 _ 丢弃了。
                 print(
                     f"  {row['IL_ID']:<15} | R²: {row['R2']:.4f} | RMSE: {row['RMSE']:.4f} | MAE: {row['MAE']:.4f} | n: {int(row['n_test'])}")
         print(f"\n=== LOIO-CV ({name}) 全局评估 ===")
@@ -208,17 +175,15 @@ def main():
         print(f"全局 RMSE    : {global_m['RMSE']:.4f}")
         print(f"全局 MAE     : {global_m['MAE']:.4f}")
 
-    # 保存四种模型每折结果
+    #保存四种模型每折结果
     for name, fold_df in loio_fold_results.items():
         fold_df.to_csv(OUTPUTS_DIR / f"loio_cv_{name}_per_il.csv", index=False)
     print(" \n已保存四种模型逐 IL 结果: loio_cv_*_per_il.csv")
-
-    # 保留 XGBoost 结果给后续分析
+    #保留XGBoost结果给后续分析
     results_df = loio_fold_results["XGBoost"]
-
-    # --- 5月28日：多模型 LOIO-CV 对比汇总 ---
+    #多模型LOIO-CV对比汇总
     print("\n" + "=" * 50)
-    print("=== LOIO-CV 多模型对比汇总 ===")
+    print("LOIO-CV多模型对比汇总")
     loio_comparison = pd.DataFrame(loio_global_results)
     print(loio_comparison.to_string(index=False))
     # loio_comparison.to_csv("loio_cv_model_comparison.csv", index=False)
@@ -227,9 +192,9 @@ def main():
         index=False
     )
     print("已保存: loio_cv_model_comparison.csv")
-    # --- LOIO-CV vs 随机划分 综合对比表 ---
+    #LOIO-CV vs 随机划分 综合对比表
     print("\n" + "=" * 60)
-    print("=== 综合对比：LOIO-CV vs 随机划分（多模型）===")
+    print("综合对比LOIO-CV vs 随机划分（多模型）")
     summary_rows = []
     for loio_row in loio_global_results:
         name = loio_row["model"]
@@ -247,9 +212,9 @@ def main():
     summary_df.to_csv(OUTPUTS_DIR / "loio_vs_random_comparison.csv", index=False)
     print("\n已保存: loio_vs_random_comparison.csv")
 
-    # --- 5月28日：多维度对比表（含逐IL RMSE分布、R²>0.5占比等）---
+    #多维度对比表（含逐IL RMSE分布、R²>0.5占比等）
     print("\n" + "=" * 80)
-    print("=== 多维度综合对比 ===")
+    print("多维度综合对比")
     print("=" * 80)
     multi_rows = []
     for name, fold_df in loio_fold_results.items():
@@ -275,7 +240,6 @@ def main():
     print(multi_df.to_string(index=False))
     multi_df.to_csv(OUTPUTS_DIR / "multimetric_comparison.csv", index=False)
     print("\n已保存: multimetric_comparison.csv")
-
 
 if __name__ == "__main__":
     main()
