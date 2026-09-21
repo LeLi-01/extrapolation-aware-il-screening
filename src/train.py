@@ -20,10 +20,9 @@ def main():
     print("加载数据并训练全量模型...")
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
-    np.save(MODELS_DIR / "X_scaled.npy", X_scaled)  #现在保存的是干净数据
+    np.save(MODELS_DIR / "X_scaled.npy", X_scaled) 
     joblib.dump(scaler, MODELS_DIR / "scaler.pkl")
     print("特征矩阵和标签已保存。")
-    #X_scaled已在构建阶段完成列过滤，直接使用
     X_filtered = X_scaled
     
     #训练最终模型 (复用已验证过的超参数)
@@ -53,8 +52,6 @@ def main():
     joblib.dump(vs_models,MODELS_DIR / "vs_models.pkl")
     final_model.fit(X_filtered, y)
     print("模型训练完成！")
-    joblib.dump(final_model, MODELS_DIR / "final_model.pkl")
-    print("模型已成功使用joblib保存！")
 
 if __name__ == "__main__":
     main()
