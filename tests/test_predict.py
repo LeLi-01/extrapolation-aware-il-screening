@@ -1,14 +1,12 @@
 """
-tests/test_predict.py
-
 基础自动化测试：
-1. 合法 SMILES 能通过 RDKit 验证
-2. 非法 SMILES 会被拒绝
-3. 新样本经过训练时的 mask + scaler 后，特征维度一致
-4. 四个模型都能完成一次预测，且输出为有限数值
-5. 相同输入重复预测结果一致
+1.合法SMILES能通过RDKit验证
+2.非法SMILES会被拒绝
+3.新样本经过训练时的mask+scaler后，特征维度一致
+4.四个模型都能完成一次预测，且输出为有限数值
+5.相同输入重复预测结果一致
 
-运行方式（在项目根目录 PythonProject2/ 下）：
+运行方式（在项目根目录PythonProject2/下）：
     pytest -q
 或者：
     pytest tests/test_predict.py -q
@@ -22,19 +20,15 @@ import numpy as np
 import pytest
 
 
-# ============================================================
-# 0. 项目路径
-# ============================================================
+from pathlib import Path
+import joblib
+import numpy as np
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SRC_DIR = PROJECT_ROOT / "src"
 MODELS_DIR = PROJECT_ROOT / "models"
 
-# 目前你的项目还不是正式 Python package，
-# 所以让 tests/ 能直接找到 src/preprocess.py
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
-
-from preprocess import (
+from src.preprocess import (
     cation_smiles,
     anion_smiles,
     validate_smiles,
@@ -42,9 +36,7 @@ from preprocess import (
 )
 
 
-# ============================================================
-# 1. 测试使用的固定样本
-# ============================================================
+#1.测试使用的固定样本
 TEST_CATION = "C4MIm or BMIM"
 TEST_ANION = "OAc or CH3COO"
 TEST_T = 303.15
@@ -52,10 +44,7 @@ TEST_P = 1.0
 
 EXPECTED_MODELS = {"XGBoost", "RF", "SVR", "GPR"}
 
-
-# ============================================================
-# 2. 公共 fixture：整组测试只加载/计算一次
-# ============================================================
+#2.公共fixture：整组测试只加载/计算一次
 @pytest.fixture(scope="module")
 def inference_assets():
     """
@@ -92,7 +81,6 @@ def inference_assets():
         "models": models,
     }
 
-
 @pytest.fixture(scope="module")
 def descriptor_tables():
     """
@@ -103,11 +91,9 @@ def descriptor_tables():
 
     return cation_df, anion_df
 
-
 def build_test_feature(inference_assets, descriptor_tables):
     """
     按 predict.py 当前的真实顺序构造一个新 IL 样本：
-
     阳离子描述符 + 阴离子描述符 + T + P
         -> nan_cols mask
         -> var_mask
@@ -133,7 +119,7 @@ def build_test_feature(inference_assets, descriptor_tables):
     var_mask = inference_assets["var_mask"]
     scaler = inference_assets["scaler"]
 
-    # 必须严格复用训练阶段保存下来的两个 mask
+    #复用训练阶段保存下来的两个mask
     feat = feat[~nan_cols]
     feat = feat[var_mask]
 
@@ -143,26 +129,17 @@ def build_test_feature(inference_assets, descriptor_tables):
 
     return feat_scaled
 
-
-# ============================================================
-# 3. Test 1：正常输入
-# ============================================================
+#3.Test1：正常输入
 def test_valid_smiles():
     smiles = cation_smiles[TEST_CATION]
     assert validate_smiles(smiles) is True
 
-
-# ============================================================
-# 4. Test 2：异常输入
-# ============================================================
+#4.Test2：异常输入
 def test_invalid_smiles():
     invalid_smiles = "this_is_not_a_valid_smiles"
     assert validate_smiles(invalid_smiles) is False
 
-
-# ============================================================
-# 5. Test 3：训练 / 预测特征维度必须一致
-# ============================================================
+#5.Test3：训练/预测特征维度必须一致
 def test_feature_dimension(inference_assets, descriptor_tables):
     feat_scaled = build_test_feature(
         inference_assets,
@@ -176,18 +153,14 @@ def test_feature_dimension(inference_assets, descriptor_tables):
     assert feat_scaled.shape[1] == scaler.n_features_in_
 
 
-# ============================================================
-# 6. Test 4：四个模型均可正常加载并预测
-# ============================================================
+#6.Test4：四个模型均可正常加载并预测
 def test_all_models_can_predict(inference_assets, descriptor_tables):
     feat_scaled = build_test_feature(
         inference_assets,
         descriptor_tables,
     )
-
     models = inference_assets["models"]
-
-    # 先检查模型字典的 key，避免再次出现 KeyError: 'XGBoost'
+    # 先检查模型字典的key，避免再次出现KeyError:'XGBoost'
     assert EXPECTED_MODELS.issubset(models.keys()), (
         f"vs_models.pkl 中的模型为 {list(models.keys())}，"
         f"但测试期望至少包含 {sorted(EXPECTED_MODELS)}"
@@ -201,10 +174,8 @@ def test_all_models_can_predict(inference_assets, descriptor_tables):
             f"{model_name} 返回了非有限预测值: {pred[0]}"
         )
 
+#7.Test5：同一输入重复预测应一致
 
-# ============================================================
-# 7. Test 5：同一输入重复预测应一致
-# ============================================================
 def test_prediction_is_reproducible(inference_assets, descriptor_tables):
     feat_scaled = build_test_feature(
         inference_assets,
