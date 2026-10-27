@@ -61,6 +61,11 @@ removed_ids = [
 from sklearn.preprocessing import StandardScaler
 def clean_raw_data(excel_path=RAW_EXCEL) -> pd.DataFrame:
     # 1. 读取数据
+    if not excel_path.exists():
+        raise FileNotFoundError(
+            f"未找到原始数据文件：{excel_path}\n"
+            "请将原始Excel放入项目的 data/ 文件夹。"
+        )
     df = pd.read_excel(excel_path, sheet_name="Database")
     #df 是一个内存中的“数据表格”
     # 2. 清洗列名（去掉所有空格）
@@ -101,7 +106,7 @@ def clean_raw_data(excel_path=RAW_EXCEL) -> pd.DataFrame:
     # 7. 保存结果
     # df.to_csv("zhao_data.csv", index=False)     #把 DataFrame 保存成 CSV 文件，并且不要把行索引写进去。
     # print(f"Saved {len(df)} rows to zhao_data.csv")
-    df.to_csv("CLEAN_CSV", index=False)
+    df.to_csv(CLEAN_CSV, index=False)
     return df
 
 # # 8. 输出统计信息

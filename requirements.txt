@@ -1,4 +1,4 @@
-//pip show numpy pandas scikit-learn xgboost rdkit shap matplotlib joblib openpyxl pytest
+#pip show numpy pandas scikit-learn xgboost rdkit shap matplotlib joblib openpyxl pytest
 numpy==2.1.3
 pandas==2.2.3
 scikit-learn==1.6.1

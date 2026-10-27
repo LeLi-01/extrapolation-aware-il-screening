@@ -66,9 +66,10 @@ def main():
     final_model.fit(X_filtered, y)
     print("模型训练完成！")
 
-    joblib.dump(final_model, MODELS_DIR / "final_model.pkl")
-    # joblib.dump(MODELS_DIR / 'final_model.pkl',final_model) # 换成 pkl 格式
-    print("模型已成功使用 joblib 保存！")
+    #9月21日 已有vs_models
+    # joblib.dump(final_model, MODELS_DIR / "final_model.pkl")
+    # # joblib.dump(MODELS_DIR / 'final_model.pkl',final_model) # 换成 pkl 格式
+    # print("模型已成功使用 joblib 保存！")
 
 if __name__ == "__main__":
     main()

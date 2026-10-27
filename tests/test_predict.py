@@ -15,26 +15,15 @@ tests/test_predict.py
 """
 
 from pathlib import Path
-import sys
 
 import joblib
 import numpy as np
 import pytest
 
-
-# ============================================================
-# 0. 项目路径
-# ============================================================
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SRC_DIR = PROJECT_ROOT / "src"
 MODELS_DIR = PROJECT_ROOT / "models"
 
-# 目前你的项目还不是正式 Python package，
-# 所以让 tests/ 能直接找到 src/preprocess.py
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
-
-from preprocess import (
+from src.preprocess import (
     cation_smiles,
     anion_smiles,
     validate_smiles,
