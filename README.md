@@ -16,7 +16,10 @@
 - 基于RDKit将阴、阳离子SMILES转化为分子描述符，并与温度(T)、压力(P)共同构建机器学习输入特征。
 - 对比Random Split与LOIO-CV，发现四类模型在未见IL场景下均出现不同程度的性能下降，说明常规随机划分可能高估模型的外推性能。
 - 构建Leave-One-Ionic-Liquid-Out Cross-Validation(LOIO-CV)验证策略，以整种离子液体为单位留出测试，评估模型对未见IL的泛化能力。
-- 对比Random Split与LOIO-CV结果，发现四类模型均存在不同程度的性能下降，表明常规随机划分可能高估模型对新型离子液体的外推性能。
+- Streamlit Web 界面：提供“溶解度预测 / 候选离子液体批量筛选 / 外推可靠性评估”三个页面。
+- 命令行推理：`python predict.py` 支持全名、简称或 SMILES 输入，可用 `--list` 查看可用离子。
+- 四模型集成：XGBoost、随机森林、SVR、GPR 同时预测，输出四模型均值、标准差与极差。
+- 可靠性分级：按“内插（组合已知）/ Tier 1（组分已知、组合新）/ 训练集外”三级提示外推风险。
 - 构建面向候选IL的可靠性约束虚拟筛选流程，综合化学空间覆盖、LOIO-CV历史表现与多模型预测一致性，对候选离子液体进行排序与分级推荐。
 
 ## 3、方法流程
@@ -59,103 +62,98 @@ LOIO-CV
 | SVR     | 0.8845 ± 0.0338 | 0.7292          | 0.1553       | 0.0564        | 0.0885       |
 | GPR     | 0.8821 ± 0.0248 | 0.7267          | 0.1554       | 0.0573        | 0.0889       |
 
-![Fig3](/Users/lile/Documents/7-28-CES/Fig3.png)
+![XGBoost 模型真实值-预测值对比图](parity_plot_XGBoost.png)
 
 ## 6、项目结构
 
 ```text
 project/
+├── app.py                     # Streamlit Web 界面（三个页面）
+├── predict.py                 # 命令行预测入口
 ├── data/
-│   └── zhao_data.csv
-├── models/
-│   ├── scaler.pkl
-│   ├── final_model.pkl
+│   └── zhao_data.csv          # 清洗后数据集（已跟踪）
+├── models/                    # 本地生成资产（*.pkl / *.npy，不提交）
 │   ├── vs_models.pkl
+│   ├── scaler.pkl
 │   ├── nan_cols_mask.npy
-│   └── var_mask.npy
-├── outputs/
+│   ├── var_mask.npy
+│   └── descriptor_names.npy
+├── outputs/                   # 实验结果（已跟踪部分）
 │   ├── loio_cv_model_comparison.csv
 │   └── loio_cv_XGBoost_per_il.csv
 ├── src/
-│   ├── preprocess.py
-│   ├── evaluate.py
-│   ├── train.py
-│   └── predict.py
+│   ├── preprocess.py          # 数据清洗、SMILES 映射、RDKit 描述符与特征矩阵
+│   ├── evaluate.py            # Random Split 与 LOIO-CV 评估
+│   ├── train.py               # 四模型训练与模型资产持久化
+│   ├── inference.py           # 统一推理接口（被 app.py 调用）
+│   └── predict.py             # src 版本预测与筛选流程
 ├── tests/
-│   └── test_predict.py
+│   ├── test_inference.py      # 推理接口、可靠分级与批量校验测试
+│   └── test_predict.py        # 预测流程基础测试
+├── docs/
+│   ├── user-manual.md         # 操作手册
+│   └── screenshots/           # 系统截图
 ├── requirements.txt
 └── README.md
 ```
 
-然后每个文件一句话：
+## 7、安装
 
-```markdown
-- `preprocess.py`:数据清洗、SMILES验证、RDKit描述符计算与特征构建。
-- `evaluate.py`:Random Split与LOIO-CV模型评估。
-- `train.py`:全量数据训练与模型资产持久化。
-- `predict.py`:加载训练资产，执行新IL推理与虚拟筛选。
-- `test_predict.py`:输入验证、特征一致性与模型推理测试。
-```
-
-## 7、环境
-
-Python 3.13 was used for development.
+要求 Python 3.10 及以上（开发环境为 Python 3.13）。
 
 ```bash
-pip install -r requirements.txt
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+python -m pip install -r requirements.txt
 ```
 
-## 8、怎样运行
+注：`streamlit` 已包含在 `requirements.txt` 中；模型资产（`models/*.pkl`、`models/*.npy`）未纳入 Git，需按下文流程在本地生成。
 
-### 1.Data preprocessing
+## 8、使用说明
+
+### 8.1 启动 Web 界面
 
 ```bash
-python src/preprocess.py
+streamlit run app.py
 ```
 
-清洗数据，构建特征矩阵。
+浏览器访问 Streamlit 提示的本地地址（默认 http://localhost:8501），可使用“溶解度预测”、“候选离子液体批量筛选”、“外推可靠性评估”三个页面。
 
-### 2.Model evaluation
+### 8.2 命令行预测
 
 ```bash
-python src/evaluate.py
+python predict.py --list
+python predict.py "C4MIm or BMIM" "TFSI or NTf2" 303.15 1.0
+python predict.py BMIM TFSI 303.15 1.0
 ```
 
-运行随机划分和LOIO-CV策略
-
-### 3.Final model training
+### 8.3 复现实验流程
 
 ```bash
-python src/train.py
+python src/preprocess.py   # 清洗数据、构建特征矩阵（需 data/ 下原始 Excel）
+python src/evaluate.py     # Random Split 与 LOIO-CV 评估
+python src/train.py        # 训练四模型并保存 vs_models.pkl
 ```
 
-完成全量训练和保存final_model.pkl。
+若仅需运行预测与 Web 界面，请确保 `models/` 下已有 `vs_models.pkl`、`scaler.pkl`、`nan_cols_mask.npy`、`var_mask.npy`、`descriptor_names.npy`。
 
-### 4.Virtual screening
+## 9、测试
+
+在项目根目录执行：
 
 ```bash
-python src/predict.py
+python -m pytest -q
 ```
 
-加载已持久化的预处理资产与训练模型，对候选IL构建特征并执行批量预测、模型共识评估与分级筛选。
+注：直接运行 `pytest -q` 可能因 `src` 导入路径问题失败，推荐使用 `python -m pytest -q`。
 
-### 5.Tests
+## 10、文档
 
-```bash
-pytest -q
-```
+- 操作手册：`docs/user-manual.md`
+- 系统截图：`docs/screenshots/`
+- 依赖清单：`requirements.txt`
 
-## 9、Testing
-
-当前包含5个基础测试： 
-
-- 合法SMILES解析 
-- 非法SMILES拒绝 
-- 训练/推理特征维度一致性 
-- 四类持久化模型均可正常完成推理 
-- 相同输入下预测结果可重复
-
-## 10、局限性
+## 11、局限性
 
 - 当前训练数据仅覆盖26种离子液体，数据集中大多为[C₄mim]类，模型推广至铵类及其他阳离子骨架可靠性仍受训练化学空间覆盖范围限制。  
 

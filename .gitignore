@@ -16,3 +16,18 @@ venv/
 # Trained models / intermediate arrays
 *.pkl
 *.npy
+
+# pytest cache
+.pytest_cache/
+
+# Software copyright application materials (may contain personal info)
+软件著作权申请资料/
+
+# Raw experimental data (unpublished)
+data/*.xlsx
+
+# Root-level generated figures (results belong in outputs/)
+/*.png
+/*.svg
+/*.pdf
+/*.tiff
